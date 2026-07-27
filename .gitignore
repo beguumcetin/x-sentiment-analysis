@@ -1,0 +1,13 @@
+__pycache__/
+*.pyc
+.DS_Store
+~$*.xlsx
+.ipynb_checkpoints/
+
+# GitHub'a eklenmeyen, sadece yerel arsiv/ara ciktilar
+eski_denemeler/
+ciktilar/sentiment_analiz_sonuclari.xlsx
+ciktilar/df_birlesik.xlsx
+ciktilar/pilot_v5_tweets_temiz.xlsx
+ciktilar/anlasmazlik_tweetler.xlsx
+ciktilar/faz1_ek_etiketleme.xlsx

@@ -1,0 +1,552 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>İTO Sentiment Analizi — Final Sonuçlar</title>
+<style>
+  .viz-root {
+    color-scheme: light;
+    --surface-1: #fcfcfb;
+    --page: #f9f9f7;
+    --text-primary: #0b0b0b;
+    --text-secondary: #52514e;
+    --text-muted: #898781;
+    --grid: #e1e0d9;
+    --baseline: #c3c2b7;
+    --border: rgba(11,11,11,0.10);
+    --good: #006300;
+
+    --neg: #e34948;
+    --neu: #c3c2b7;
+    --pos: #2a78d6;
+
+    --series-1: #2a78d6;
+    --series-2: #eb6834;
+
+    --seq-100: #cde2fb;
+    --seq-450: #2a78d6;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:where(:not([data-theme="light"])) .viz-root {
+      color-scheme: dark;
+      --surface-1: #1a1a19;
+      --page: #0d0d0d;
+      --text-primary: #ffffff;
+      --text-secondary: #c3c2b7;
+      --text-muted: #898781;
+      --grid: #2c2c2a;
+      --baseline: #383835;
+      --border: rgba(255,255,255,0.10);
+      --good: #0ca30c;
+
+      --neg: #e66767;
+      --neu: #383835;
+      --pos: #3987e5;
+
+      --series-1: #3987e5;
+      --series-2: #d95926;
+
+      --seq-100: #184f95;
+      --seq-450: #3987e5;
+    }
+  }
+  :root[data-theme="dark"] .viz-root {
+    color-scheme: dark;
+    --surface-1: #1a1a19;
+    --page: #0d0d0d;
+    --text-primary: #ffffff;
+    --text-secondary: #c3c2b7;
+    --text-muted: #898781;
+    --grid: #2c2c2a;
+    --baseline: #383835;
+    --border: rgba(255,255,255,0.10);
+    --good: #0ca30c;
+
+    --neg: #e66767;
+    --neu: #383835;
+    --pos: #3987e5;
+
+    --series-1: #3987e5;
+    --series-2: #d95926;
+
+    --seq-100: #184f95;
+    --seq-450: #3987e5;
+  }
+
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    background: var(--page);
+    color: var(--text-primary);
+    font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+  }
+  .viz-root { max-width: 1080px; margin: 0 auto; padding: 32px 20px 64px; }
+
+  header.page-head { margin-bottom: 28px; }
+  header.page-head h1 { font-size: 22px; font-weight: 650; margin: 0 0 6px; }
+  header.page-head p { font-size: 14px; color: var(--text-secondary); margin: 0; }
+
+  .stat-row {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+    gap: 12px;
+    margin-bottom: 32px;
+  }
+  .stat-tile {
+    background: var(--surface-1);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 16px 18px;
+  }
+  .stat-tile .label { font-size: 12.5px; color: var(--text-secondary); margin-bottom: 8px; }
+  .stat-tile .value { font-size: 28px; font-weight: 650; letter-spacing: -0.01em; }
+  .stat-tile .delta { font-size: 12.5px; margin-top: 6px; color: var(--good); font-weight: 600; }
+  .stat-tile .sub { font-size: 12px; color: var(--text-muted); margin-top: 4px; }
+
+  .card {
+    background: var(--surface-1);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 22px 24px 20px;
+    margin-bottom: 24px;
+  }
+  .card h2 { font-size: 15px; font-weight: 650; margin: 0 0 2px; }
+  .card .card-sub { font-size: 12.5px; color: var(--text-secondary); margin: 0 0 18px; }
+
+  .legend { display: flex; gap: 16px; flex-wrap: wrap; margin-bottom: 16px; font-size: 12.5px; color: var(--text-secondary); }
+  .legend .item { display: flex; align-items: center; gap: 6px; }
+  .legend .swatch { width: 10px; height: 10px; border-radius: 3px; display: inline-block; }
+
+  .hbar-group { margin-bottom: 18px; }
+  .hbar-row { display: grid; grid-template-columns: 90px 1fr; align-items: center; gap: 10px; margin-bottom: 10px; }
+  .hbar-row .rowlabel { font-size: 12.5px; color: var(--text-secondary); text-align: right; }
+  .hbar-track { position: relative; height: 24px; display: flex; border-radius: 4px; overflow: visible; }
+  .hseg {
+    height: 24px; position: relative; cursor: pointer;
+    transition: filter 0.15s ease;
+  }
+  .hseg:hover { filter: brightness(1.08); }
+  .hseg:first-child { border-radius: 4px 0 0 4px; }
+  .hseg:last-child { border-radius: 0 4px 4px 0; }
+  .hseg-label {
+    position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+    font-size: 11.5px; font-weight: 600; color: #fff; white-space: nowrap;
+    pointer-events: none;
+  }
+  .hseg-label.on-neu { color: var(--text-primary); }
+
+  .gbar-wrap { display: flex; align-items: flex-end; gap: 28px; height: 190px; padding: 0 4px 0; border-bottom: 1px solid var(--baseline); }
+  .gbar-cat { display: flex; flex-direction: column; align-items: center; flex: 1; height: 100%; justify-content: flex-end; }
+  .gbar-cols { display: flex; gap: 6px; align-items: flex-end; height: 100%; }
+  .gbar-col { width: 22px; border-radius: 4px 4px 0 0; position: relative; cursor: pointer; transition: filter 0.15s ease; }
+  .gbar-col:hover { filter: brightness(1.1); }
+  .gbar-val { position: absolute; top: -18px; left: 50%; transform: translateX(-50%); font-size: 11px; font-weight: 600; color: var(--text-primary); white-space: nowrap; }
+  .gbar-catlabel { margin-top: 10px; font-size: 12px; color: var(--text-secondary); text-align: center; }
+
+  .tooltip {
+    position: fixed; pointer-events: none; z-index: 50;
+    background: var(--text-primary); color: var(--surface-1);
+    font-size: 12px; padding: 6px 10px; border-radius: 6px;
+    transform: translate(-50%, -100%); opacity: 0; transition: opacity 0.1s ease;
+    white-space: nowrap;
+  }
+
+  .toggle-row { display: flex; justify-content: flex-end; margin-bottom: 12px; gap: 8px; }
+  .toggle-btn {
+    font-size: 12px; padding: 5px 10px; border-radius: 6px; border: 1px solid var(--border);
+    background: transparent; color: var(--text-secondary); cursor: pointer; font-family: inherit;
+  }
+  .toggle-btn.active { background: var(--series-1); color: #fff; border-color: transparent; }
+
+  table.data-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  table.data-table th, table.data-table td { text-align: left; padding: 7px 10px; border-bottom: 1px solid var(--grid); }
+  table.data-table th { color: var(--text-secondary); font-weight: 600; font-size: 12px; }
+  table.data-table td { color: var(--text-primary); font-variant-numeric: tabular-nums; }
+
+  .hidden { display: none !important; }
+
+  .chip {
+    display: inline-block; padding: 2px 9px; border-radius: 20px;
+    font-size: 11px; font-weight: 650; letter-spacing: 0.01em;
+  }
+  .chip.neg { background: color-mix(in srgb, var(--neg) 16%, transparent); color: var(--neg); }
+  .chip.neu { background: color-mix(in srgb, var(--text-muted) 20%, transparent); color: var(--text-secondary); }
+  .chip.pos { background: color-mix(in srgb, var(--pos) 16%, transparent); color: var(--pos); }
+
+  .tweet-card {
+    border-left: 3px solid var(--baseline);
+    background: color-mix(in srgb, var(--text-primary) 3%, transparent);
+    border-radius: 0 8px 8px 0;
+    padding: 11px 14px;
+    margin-bottom: 10px;
+  }
+  .tweet-card.b-neg { border-left-color: var(--neg); }
+  .tweet-card.b-neu { border-left-color: var(--neu); }
+  .tweet-card.b-pos { border-left-color: var(--pos); }
+  .tweet-text { font-size: 13.5px; line-height: 1.5; color: var(--text-primary); margin-bottom: 8px; }
+  .tweet-meta { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .tweet-meta .arrow { color: var(--text-muted); font-size: 12px; }
+  .tweet-meta .topic-badge { color: var(--text-muted); font-size: 11.5px; margin-left: auto; }
+
+  .example-note {
+    font-size: 12.5px; color: var(--text-secondary); margin: -4px 0 16px;
+    padding: 9px 12px; border-radius: 8px;
+    background: color-mix(in srgb, var(--good) 8%, transparent);
+    border-left: 3px solid var(--good);
+  }
+
+  .topic-gallery { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; }
+  .topic-col h3 { font-size: 13px; font-weight: 650; margin: 0 0 10px; color: var(--text-primary); }
+  .topic-col .tweet-card { padding: 9px 12px; }
+  .topic-col .tweet-text { font-size: 12.5px; }
+
+  footer.page-foot { font-size: 12px; color: var(--text-muted); margin-top: 8px; text-align: center; }
+</style>
+</head>
+<body>
+
+<div class="viz-root">
+  <header class="page-head">
+    <h1>İTO Sentiment Analizi — Final Sonuçlar</h1>
+    <p>571 tweet · turizm / ulaşım / enflasyon · fine-tune edilmiş savasy modeli (LoRA)</p>
+  </header>
+
+  <div class="stat-row">
+    <div class="stat-tile">
+      <div class="label">Toplam tweet</div>
+      <div class="value">571</div>
+      <div class="sub">V2 (367) + Pilot v5 (204)</div>
+    </div>
+    <div class="stat-tile">
+      <div class="label">Genel doğruluk</div>
+      <div class="value">%81</div>
+      <div class="delta">%61.5'ten ↑</div>
+    </div>
+    <div class="stat-tile">
+      <div class="label">Nötr yakalama</div>
+      <div class="value">%62</div>
+      <div class="delta">%23.9'dan ↑ (2.5×)</div>
+    </div>
+    <div class="stat-tile">
+      <div class="label">Negatif yakalama</div>
+      <div class="value">%90</div>
+      <div class="sub">Güç korundu (%86.6 idi)</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Konuya Göre Duygu Dağılımı</h2>
+    <p class="card-sub">Her konudaki tweetlerin negatif / nötr / pozitif oranı</p>
+    <div class="legend">
+      <span class="item"><span class="swatch" style="background:var(--neg)"></span>Negatif</span>
+      <span class="item"><span class="swatch" style="background:var(--neu)"></span>Nötr</span>
+      <span class="item"><span class="swatch" style="background:var(--pos)"></span>Pozitif</span>
+    </div>
+    <div id="chart-topic"></div>
+    <div class="toggle-row">
+      <button class="toggle-btn" data-table-toggle="topic">Tablo görünümü</button>
+    </div>
+    <table class="data-table hidden" id="table-topic">
+      <thead><tr><th>Konu</th><th>Negatif</th><th>Nötr</th><th>Pozitif</th><th>Toplam</th></tr></thead>
+      <tbody>
+        <tr><td>Enflasyon</td><td>105</td><td>81</td><td>11</td><td>197</td></tr>
+        <tr><td>Turizm</td><td>50</td><td>54</td><td>78</td><td>182</td></tr>
+        <tr><td>Ulaşım</td><td>133</td><td>34</td><td>25</td><td>192</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="card">
+    <h2>Fine-Tuning Öncesi / Sonrası</h2>
+    <p class="card-sub">208 satırlık gold-standard veri üzerinde ölçülen doğruluk (öncesi: tüm set, sonrası: 42 satırlık validation)</p>
+    <div class="legend">
+      <span class="item"><span class="swatch" style="background:var(--baseline)"></span>Öncesi (savasy)</span>
+      <span class="item"><span class="swatch" style="background:var(--series-1)"></span>Sonrası (fine-tuned)</span>
+    </div>
+    <div class="gbar-wrap" id="chart-finetune"></div>
+    <div class="toggle-row">
+      <button class="toggle-btn" data-table-toggle="finetune">Tablo görünümü</button>
+    </div>
+    <table class="data-table hidden" id="table-finetune">
+      <thead><tr><th>Metrik</th><th>Öncesi</th><th>Sonrası</th></tr></thead>
+      <tbody>
+        <tr><td>Genel doğruluk</td><td>%61.5</td><td>%81.0</td></tr>
+        <tr><td>Negatif yakalama</td><td>%86.6</td><td>%90.0</td></tr>
+        <tr><td>Nötr yakalama</td><td>%23.9</td><td>%62.0</td></tr>
+        <tr><td>Pozitif yakalama</td><td>%63.6</td><td>%89.0</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="card">
+    <h2>Fine-Tuning'in Düzelttiği Gerçek Örnekler</h2>
+    <p class="card-sub">Haber/duyuru formatlı tweetler artık doğru şekilde nötr — eskiden yanlışlıkla duygu yükleniyordu</p>
+
+    <div class="tweet-card b-neu">
+      <div class="tweet-text">"İstanbul Havalimanı işletmecisi İGA'dan 'kira' açıklaması: DHMİ'ye 1 lira dahi borcumuz yok"</div>
+      <div class="tweet-meta">
+        <span class="chip neg">negatif</span><span class="arrow">→</span><span class="chip neu">nötr</span>
+        <span class="topic-badge">enflasyon</span>
+      </div>
+    </div>
+
+    <div class="tweet-card b-neu">
+      <div class="tweet-text">"İstanbul'un yeni açılan 5 yıldızlı oteli personel arıyor"</div>
+      <div class="tweet-meta">
+        <span class="chip pos">pozitif</span><span class="arrow">→</span><span class="chip neu">nötr</span>
+        <span class="topic-badge">turizm</span>
+      </div>
+    </div>
+
+    <div class="tweet-card b-neu">
+      <div class="tweet-text">"İstanbul'da açılacak Crowne Plaza otelinin operasyon direktörü oldu"</div>
+      <div class="tweet-meta">
+        <span class="chip pos">pozitif</span><span class="arrow">→</span><span class="chip neu">nötr</span>
+        <span class="topic-badge">turizm</span>
+      </div>
+    </div>
+
+    <div class="tweet-card b-neu">
+      <div class="tweet-text">"Sayın İstanbul Büyükşehir Belediyesi, Beylikdüzü'ne metro istiyoruz.."</div>
+      <div class="tweet-meta">
+        <span class="chip neg">negatif</span><span class="arrow">→</span><span class="chip neu">nötr</span>
+        <span class="topic-badge">ulaşım</span>
+      </div>
+    </div>
+
+    <div class="example-note">✓ Model hassasiyetini kaybetmedi — gerçekten ciddi içerikler hâlâ doğru şekilde negatif kalıyor:</div>
+
+    <div class="tweet-card b-neg">
+      <div class="tweet-text">"İstanbul Sarıyer'de kira husumeti nedeniyle çıkan kavgada yaşlı bir adam eski kiracısı tarafından darp edildi."</div>
+      <div class="tweet-meta">
+        <span class="chip neg">negatif</span><span class="arrow">→</span><span class="chip neg">negatif</span>
+        <span class="topic-badge">enflasyon · değişmedi</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Konulara Göre Örnek Tweetler</h2>
+    <p class="card-sub">Her konudan negatif, nötr ve pozitif birer örnek tweet</p>
+    <div class="topic-gallery">
+      <div class="topic-col">
+        <h3>Enflasyon</h3>
+        <div class="tweet-card b-neg">
+          <div class="tweet-text">"Hava çok sıcak geliyorsa İstanbul'da kira fiyatlarına bakın. Buz kesersiniz. 🤦🏼‍♀️"</div>
+          <div class="tweet-meta"><span class="chip neg">negatif</span></div>
+        </div>
+        <div class="tweet-card b-neu">
+          <div class="tweet-text">"İstanbul genelinde en ucuz mezar 10.728 TL olurken, en pahalı mezarın fiyatı 334.896 TL'ye ulaştı."</div>
+          <div class="tweet-meta"><span class="chip neu">nötr</span></div>
+        </div>
+        <div class="tweet-card b-pos">
+          <div class="tweet-text">"Bazı mutluluklar çok pahalı değil; çocuklarımın kahkahası, martı sesi ve arkanda köpürerek kalan bir İstanbul.. 🚢💙"</div>
+          <div class="tweet-meta"><span class="chip pos">pozitif</span></div>
+        </div>
+      </div>
+      <div class="topic-col">
+        <h3>Turizm</h3>
+        <div class="tweet-card b-neg">
+          <div class="tweet-text">"İstanbul da otel bulmak kadar zor bişey var mı 🤬"</div>
+          <div class="tweet-meta"><span class="chip neg">negatif</span></div>
+        </div>
+        <div class="tweet-card b-neu">
+          <div class="tweet-text">"Yarın kendimi bir haftalık tatil moduna alıyorum, İstanbul denen bu savana ve jungle'dan bir nebze uzaklaşıyorum."</div>
+          <div class="tweet-meta"><span class="chip neu">nötr</span></div>
+        </div>
+        <div class="tweet-card b-pos">
+          <div class="tweet-text">"O zaman Vera için tatil sezonu başlasın. Sevgili İstanbul bekle beni geliyorum💃🏻"</div>
+          <div class="tweet-meta"><span class="chip pos">pozitif</span></div>
+        </div>
+      </div>
+      <div class="topic-col">
+        <h3>Ulaşım</h3>
+        <div class="tweet-card b-neg">
+          <div class="tweet-text">"İstanbul gel de trafik gör aq konum Kumla"</div>
+          <div class="tweet-meta"><span class="chip neg">negatif</span></div>
+        </div>
+        <div class="tweet-card b-neu">
+          <div class="tweet-text">"Ankara Kayseri otobüs 1350, İstanbul aktarmalı uçak 1500"</div>
+          <div class="tweet-meta"><span class="chip neu">nötr</span></div>
+        </div>
+        <div class="tweet-card b-pos">
+          <div class="tweet-text">"İstanbul metro sıralama videolarını izlemeyi çok seviyordum"</div>
+          <div class="tweet-meta"><span class="chip pos">pozitif</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Kaynağa Göre Duygu Dağılımı</h2>
+    <p class="card-sub">Orijinal veri seti (V2) ile pilot veri setinin (Pilot v5) karşılaştırması</p>
+    <div class="legend">
+      <span class="item"><span class="swatch" style="background:var(--neg)"></span>Negatif</span>
+      <span class="item"><span class="swatch" style="background:var(--neu)"></span>Nötr</span>
+      <span class="item"><span class="swatch" style="background:var(--pos)"></span>Pozitif</span>
+    </div>
+    <div id="chart-kaynak"></div>
+    <div class="toggle-row">
+      <button class="toggle-btn" data-table-toggle="kaynak">Tablo görünümü</button>
+    </div>
+    <table class="data-table hidden" id="table-kaynak">
+      <thead><tr><th>Kaynak</th><th>Negatif</th><th>Nötr</th><th>Pozitif</th><th>Toplam</th></tr></thead>
+      <tbody>
+        <tr><td>V2</td><td>180</td><td>121</td><td>66</td><td>367</td></tr>
+        <tr><td>Pilot v5</td><td>108</td><td>48</td><td>48</td><td>204</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <footer class="page-foot">İTO Sentiment Analizi Projesi — Begüm Çetin, Staj Görevi</footer>
+</div>
+
+<div class="tooltip" id="tooltip"></div>
+
+<script>
+(function () {
+  const tooltip = document.getElementById("tooltip");
+  function showTip(evt, text) {
+    tooltip.textContent = text;
+    tooltip.style.left = evt.clientX + "px";
+    tooltip.style.top = (evt.clientY - 10) + "px";
+    tooltip.style.opacity = "1";
+  }
+  function moveTip(evt) {
+    tooltip.style.left = evt.clientX + "px";
+    tooltip.style.top = (evt.clientY - 10) + "px";
+  }
+  function hideTip() { tooltip.style.opacity = "0"; }
+
+  function fmtPct(n, total) { return Math.round((n / total) * 1000) / 10; }
+
+  // ---- diverging 100% stacked bar builder ----
+  function buildStacked(containerId, rows) {
+    const root = document.getElementById(containerId);
+    const wrap = document.createElement("div");
+    wrap.className = "hbar-group";
+    rows.forEach(row => {
+      const total = row.neg + row.neu + row.pos;
+      const rowEl = document.createElement("div");
+      rowEl.className = "hbar-row";
+
+      const label = document.createElement("div");
+      label.className = "rowlabel";
+      label.textContent = row.label;
+      rowEl.appendChild(label);
+
+      const track = document.createElement("div");
+      track.className = "hbar-track";
+
+      const segs = [
+        { key: "neg", val: row.neg, color: "var(--neg)", name: "Negatif" },
+        { key: "neu", val: row.neu, color: "var(--neu)", name: "Nötr" },
+        { key: "pos", val: row.pos, color: "var(--pos)", name: "Pozitif" },
+      ];
+      segs.forEach((seg, i) => {
+        const pct = fmtPct(seg.val, total);
+        const segEl = document.createElement("div");
+        segEl.className = "hseg";
+        segEl.style.width = pct + "%";
+        segEl.style.background = seg.color;
+        segEl.style.marginRight = i < segs.length - 1 ? "2px" : "0";
+
+        if (pct > 12) {
+          const lbl = document.createElement("span");
+          lbl.className = "hseg-label" + (seg.key === "neu" ? " on-neu" : "");
+          lbl.textContent = pct + "%";
+          segEl.appendChild(lbl);
+        }
+
+        segEl.addEventListener("mousemove", (e) => moveTip(e));
+        segEl.addEventListener("mouseenter", (e) => showTip(e, `${row.label} — ${seg.name}: ${seg.val} tweet (%${pct})`));
+        segEl.addEventListener("mouseleave", hideTip);
+
+        track.appendChild(segEl);
+      });
+
+      rowEl.appendChild(track);
+      wrap.appendChild(rowEl);
+    });
+    root.appendChild(wrap);
+  }
+
+  buildStacked("chart-topic", [
+    { label: "Enflasyon", neg: 105, neu: 81, pos: 11 },
+    { label: "Turizm", neg: 50, neu: 54, pos: 78 },
+    { label: "Ulaşım", neg: 133, neu: 34, pos: 25 },
+  ]);
+
+  buildStacked("chart-kaynak", [
+    { label: "V2", neg: 180, neu: 121, pos: 66 },
+    { label: "Pilot v5", neg: 108, neu: 48, pos: 48 },
+  ]);
+
+  // ---- grouped bar for before/after ----
+  function buildGrouped(containerId, cats) {
+    const root = document.getElementById(containerId);
+    const maxVal = 100;
+    cats.forEach(cat => {
+      const catEl = document.createElement("div");
+      catEl.className = "gbar-cat";
+
+      const cols = document.createElement("div");
+      cols.className = "gbar-cols";
+
+      [
+        { key: "before", val: cat.before, color: "var(--baseline)", name: "Öncesi" },
+        { key: "after", val: cat.after, color: "var(--series-1)", name: "Sonrası" },
+      ].forEach(s => {
+        const col = document.createElement("div");
+        col.className = "gbar-col";
+        col.style.height = (s.val / maxVal * 100) + "%";
+        col.style.background = s.color;
+
+        const val = document.createElement("div");
+        val.className = "gbar-val";
+        val.textContent = "%" + s.val;
+        col.appendChild(val);
+
+        col.addEventListener("mousemove", (e) => moveTip(e));
+        col.addEventListener("mouseenter", (e) => showTip(e, `${cat.label} — ${s.name}: %${s.val}`));
+        col.addEventListener("mouseleave", hideTip);
+
+        cols.appendChild(col);
+      });
+
+      catEl.appendChild(cols);
+      const catLabel = document.createElement("div");
+      catLabel.className = "gbar-catlabel";
+      catLabel.textContent = cat.label;
+      catEl.appendChild(catLabel);
+
+      root.appendChild(catEl);
+    });
+  }
+
+  buildGrouped("chart-finetune", [
+    { label: "Genel", before: 61.5, after: 81 },
+    { label: "Negatif", before: 86.6, after: 90 },
+    { label: "Nötr", before: 23.9, after: 62 },
+    { label: "Pozitif", before: 63.6, after: 89 },
+  ]);
+
+  // ---- table toggles ----
+  document.querySelectorAll("[data-table-toggle]").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const key = btn.getAttribute("data-table-toggle");
+      const table = document.getElementById("table-" + key);
+      const chartCard = btn.closest(".card").querySelector("[id^='chart-']");
+      const isHidden = table.classList.contains("hidden");
+      table.classList.toggle("hidden");
+      chartCard.classList.toggle("hidden", isHidden);
+      btn.classList.toggle("active", isHidden);
+      btn.textContent = isHidden ? "Grafik görünümü" : "Tablo görünümü";
+    });
+  });
+})();
+</script>
+
+</body>
+</html>
