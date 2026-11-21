@@ -1,0 +1,42 @@
+İSTANBUL TWEET VERİ SETİ - GÖREV NOTU
+========================================
+Tarih: 2026-07-13 çekimi, pilot v5
+
+GÖREV
+-----
+Elimizde İstanbul ile ilgili "turizm", "ulaşım", "enflasyon" konularında
+toplanmış 399 tweet var (133'er adet). Bu tweet'ler anahtar kelimeyle arama
+yapılarak çekildi, bu yüzden içinde (a) aynı haberin tekrar tekrar
+paylaşılmış hali ve (b) konuyla hiç ilgisi olmayan bazı tekil haberler var.
+
+Senden istenen SADECE 2 mekanik adım (tweet'leri tek tek okuyup "alakalı
+mı" diye karar vermene gerek yok):
+
+1) DEDUP: Her haber/tweet benzersiz olsun. Aynı haberin URL'i farklı
+   farklı ID'yle tekrar tekrar paylaşılmış halleri var, bunları teke indir
+   (metni URL'siz karşılaştırarak aynı olanları at, 1 tanesini bırak).
+
+2) BİLİNEN ALAKASIZ KALIPLARI ÇIKAR: Aşağıda listelenen, konuyla hiç
+   ilgisi olmayan haber kalıplarını metin araması ile bul ve çıkar:
+
+   Turizm:
+     - "otel icradan satışa çıktı" (emlak haberi)
+     - "Ahbap Derneği soruşturması"
+     - Beşiktaş'ta ceset bulunması haberi
+     - "PRZMA" otel varlık satışı (borsa haberi)
+     - Vefat/anma haberleri
+
+   Ulaşım:
+     - Bir polisin intiharı haberi ("Halil B." / "trafik denetleme şubesi")
+
+   Enflasyon:
+     - CHP Kurultay/mahkeme haberi
+     - "CIA/hizmetçi kahve" komplo teorisi
+
+Bu iki adımdan sonra kalan veri seti direkt BERT modeline verilebilir.
+Yeniden veri çekmene gerek yok, elimizdeki 399 tweet üzerinden çalışabilirsin.
+
+DOSYALAR
+--------
+turizm_pilot_v5.jsonl / ulasim_pilot_v5.jsonl / enflasyon_pilot_v5.jsonl
+(ham veri, 133'er tweet)
